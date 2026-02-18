@@ -1,0 +1,725 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Proviten Petty Cash</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap');
+        body { font-family: 'Inter', sans-serif; background-color: #1f2937; color: #f9fafb; }
+        .hidden { display: none; }
+        
+        /* Animasi fade-in untuk judul */
+        .animate-fade-in {
+            animation: fadeIn 2s ease-in-out;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        /* Animasi glow untuk teks */
+        .animate-glow {
+            animation: glow 2s ease-in-out infinite alternate;
+        }
+        @keyframes glow {
+            from { text-shadow: 0 0 5px #3b82f6; }
+            to { text-shadow: 0 0 20px #3b82f6, 0 0 30px #3b82f6; }
+        }
+        
+        /* Animasi blink untuk saldo */
+        .animate-blink {
+            animation: blink 1.5s ease-in-out infinite;
+        }
+        @keyframes blink {
+            0%, 50% { opacity: 1; }
+            51%, 100% { opacity: 0.3; }
+        }
+        
+        @media print {
+            @page { size: auto; margin: 10mm; }
+            .no-print { display: none !important; }
+            .print-only { display: block !important; }
+            body { background-color: white !important; padding: 0 !important; color: black !important; }
+            .container { max-width: 100% !important; width: 100% !important; margin: 0 !important; padding: 0 !important; }
+            .bg-gray-800 { background-color: white !important; box-shadow: none !important; border: none !important; }
+            .bg-gray-700 { background-color: #f8f9fa !important; }
+            .text-white { color: black !important; }
+            .text-gray-500 { color: #6c757d !important; }
+            .border-gray-700 { border-color: #ddd !important; }
+            table { width: 100% !important; border-collapse: collapse !important; }
+            th, td { border: 1px solid #ddd !important; padding: 8px !important; font-size: 10pt !important; }
+            th { background-color: #f8f9fa !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+            .bg-blue-50 { background-color: #eff6ff !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+        }
+    </style>
+</head>
+<body>
+
+<!-- SCREEN: LOGIN -->
+<div id="login-screen" class="flex items-center justify-center min-h-screen">
+    <div class="bg-gray-800 p-8 rounded-xl shadow-2xl w-full max-w-md border border-gray-700">
+        <div class="text-center mb-6">
+            <h1 class="text-2xl font-bold text-blue-400 animate-fade-in animate-glow">Proviten Petty Cash</h1>
+            <p id="pw-hint" class="text-gray-300 text-sm">Masukkan password untuk masuk</p>
+        </div>
+        <input type="password" id="input-password" onkeypress="if(event.keyCode==13) handleLogin()" class="w-full p-3 border border-gray-600 rounded-lg mb-4 focus:ring-2 focus:ring-blue-400 outline-none bg-gray-700 text-white" placeholder="Password...">
+        <button onclick="handleLogin()" class="w-full bg-blue-600 text-white p-3 rounded-lg font-semibold hover:bg-blue-700 transition">Buka Aplikasi</button>
+        <p id="error-msg" class="text-red-500 text-sm mt-3 text-center hidden">Password salah!</p>
+    </div>
+</div>
+
+<!-- SCREEN: MAIN APP -->
+<div id="main-app" class="hidden container mx-auto p-4 max-w-6xl">
+    <!-- Header -->
+    <header class="flex flex-col md:flex-row justify-between items-center mb-6 no-print gap-4">
+        <div class="flex items-center gap-3">
+            <!-- Logo placeholder - Ganti dengan gambar logo Anda: <img src="logo.png" alt="Proviten Logo" class="h-10 w-10 object-contain"> -->
+            <svg class="h-10 w-10" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <rect width="40" height="40" rx="8" fill="#2563eb"/>
+                <text x="20" y="26" text-anchor="middle" fill="white" font-family="Arial, sans-serif" font-size="20" font-weight="bold">P</text>
+            </svg>
+            <div>
+                <h1 class="text-2xl font-bold text-white animate-fade-in">Proviten Petty Cash</h1>
+                <p class="text-sm text-gray-300">Kas Kecil Proviten</p>
+            </div>
+        </div>
+        <div class="flex flex-wrap gap-2 justify-center">
+            <button onclick="showLogs()" class="bg-amber-700 text-amber-100 px-4 py-2 rounded-lg text-sm font-semibold hover:bg-amber-600 transition">Riwayat Edit</button>
+            <button onclick="exportData()" class="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-blue-700 transition">Backup Data</button>
+            <button onclick="importData()" class="bg-gray-600 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-gray-700 transition">Impor Data</button>
+            <button onclick="logout()" class="bg-red-100 text-red-600 px-4 py-2 rounded-lg text-sm font-semibold hover:bg-red-200 transition">Keluar</button>
+        </div>
+    </header>
+
+    <!-- Dashboard Saldo -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6 no-print">
+        <div class="bg-gray-800 border-l-4 border-green-500 p-6 rounded-xl shadow-sm">
+            <p class="text-xs font-bold text-gray-300 uppercase tracking-wider">Total Pemasukan (Debet)</p>
+            <h2 id="display-masuk" class="text-2xl font-bold text-green-400">Rp 0</h2>
+        </div>
+        <div class="bg-gray-800 border-l-4 border-red-500 p-6 rounded-xl shadow-sm">
+            <p class="text-xs font-bold text-gray-300 uppercase tracking-wider">Total Pengeluaran (Kredit)</p>
+            <h2 id="display-keluar" class="text-2xl font-bold text-red-400">Rp 0</h2>
+        </div>
+        <div class="bg-gray-800 border-l-4 border-blue-600 p-6 rounded-xl shadow-sm">
+            <p class="text-xs font-bold text-gray-300 uppercase tracking-wider">Posisi Saldo Akhir</p>
+            <h2 id="display-saldo" class="text-2xl font-bold text-blue-400 animate-blink">Rp 0</h2>
+        </div>
+    </div>
+
+    <!-- Form Input Transaksi -->
+    <div class="bg-gray-800 p-6 rounded-xl shadow-sm mb-6 no-print">
+        <div class="flex justify-between items-center mb-4">
+            <h3 class="font-bold text-gray-200 text-sm uppercase">Input Transaksi</h3>
+            <div class="flex bg-gray-700 p-1 rounded-lg">
+                <button id="tab-masuk" onclick="switchType('masuk')" class="px-4 py-1 text-xs font-bold rounded-md bg-gray-600 shadow-sm text-green-400">UANG MASUK</button>
+                <button id="tab-keluar" onclick="switchType('keluar')" class="px-4 py-1 text-xs font-bold rounded-md text-gray-500">UANG KELUAR</button>
+            </div>
+        </div>
+        
+        <div class="grid grid-cols-1 md:grid-cols-6 gap-4">
+            <div class="md:col-span-1">
+                <label class="block text-xs text-gray-300 mb-1">Tanggal</label>
+                <input type="date" id="tgl-transaksi" class="w-full border border-gray-600 p-2 rounded focus:ring-1 focus:ring-blue-500 outline-none text-sm bg-gray-700 text-white">
+            </div>
+            <div class="md:col-span-1">
+                <label class="block text-xs text-gray-300 mb-1">Kategori</label>
+                <select id="kat-transaksi" class="w-full border border-gray-600 p-2 rounded focus:ring-1 focus:ring-blue-500 outline-none text-sm bg-gray-700 text-white">
+                </select>
+            </div>
+            <div class="md:col-span-2">
+                <label class="block text-xs text-gray-300 mb-1">Keterangan Tambahan</label>
+                <input type="text" id="ket-transaksi" class="w-full border border-gray-600 p-2 rounded focus:ring-1 focus:ring-blue-500 outline-none text-sm bg-gray-700 text-white" placeholder="Detail transaksi...">
+            </div>
+            <div class="md:col-span-1">
+                <label class="block text-xs text-gray-300 mb-1">Nominal (Rp)</label>
+                <input type="number" id="nom-transaksi" class="w-full border border-gray-600 p-2 rounded focus:ring-1 focus:ring-blue-500 outline-none text-sm font-bold bg-gray-700 text-white" placeholder="0">
+            </div>
+            <div class="flex items-end">
+                <button id="btn-save" onclick="handleSave()" class="bg-green-600 text-white w-full h-10 rounded-lg hover:bg-green-700 font-bold transition text-xs">SIMPAN TRANSAKSI</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tabel Data -->
+    <div class="bg-gray-800 rounded-xl shadow-sm overflow-hidden mb-12 border border-gray-700">
+        <div class="p-4 border-b border-gray-600 flex flex-col md:flex-row justify-between items-center no-print gap-4">
+            <h3 class="font-bold text-gray-200">Buku Kas Utama</h3>
+            <div class="flex flex-wrap items-center gap-2">
+                <input type="date" id="filter-start" class="text-xs border border-gray-600 p-2 rounded bg-gray-700 text-white">
+                <span class="text-xs text-gray-300">s/d</span>
+                <input type="date" id="filter-end" class="text-xs border border-gray-600 p-2 rounded bg-gray-700 text-white">
+                <button onclick="renderTable()" class="bg-blue-700 text-blue-100 px-4 py-2 rounded-lg text-xs font-bold hover:bg-blue-600">Filter</button>
+                <button onclick="showPrintModal()" class="bg-gray-700 text-gray-200 px-4 py-2 rounded-lg text-xs font-bold hover:bg-gray-600">Cetak / PDF</button>
+            </div>
+        </div>
+        
+        <div class="print-only hidden p-4 text-center border-b mb-4">
+            <!-- Logo placeholder untuk cetak - Ganti dengan gambar logo Anda -->
+            <svg class="h-12 w-12 mx-auto mb-2" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <rect width="40" height="40" rx="8" fill="#2563eb"/>
+                <text x="20" y="26" text-anchor="middle" fill="white" font-family="Arial, sans-serif" font-size="20" font-weight="bold">P</text>
+            </svg>
+            <h1 class="text-xl font-bold uppercase">Laporan Proviten Petty Cash</h1>
+            <p id="print-periode" class="text-sm text-gray-600 mt-1"></p>
+        </div>
+
+        <div class="overflow-x-auto">
+            <table class="w-full text-left border-collapse min-w-[800px]">
+                <thead class="bg-gray-700 border-b border-gray-600">
+                    <tr>
+                        <th class="p-3 text-[10px] font-bold text-gray-300 uppercase">Tanggal</th>
+                        <th class="p-3 text-[10px] font-bold text-gray-300 uppercase">Jenis / Kategori</th>
+                        <th class="p-3 text-[10px] font-bold text-gray-300 uppercase">Keterangan</th>
+                        <th class="p-3 text-[10px] font-bold text-gray-300 uppercase text-right">Debet (+)</th>
+                        <th class="p-3 text-[10px] font-bold text-gray-300 uppercase text-right">Kredit (-)</th>
+                        <th class="p-3 text-[10px] font-bold text-gray-300 uppercase text-right bg-blue-900 text-blue-300">Saldo</th>
+                        <th class="p-3 text-[10px] font-bold text-gray-300 uppercase no-print text-center">Aksi</th>
+                    </tr>
+                </thead>
+                <tbody id="table-body" class="text-sm">
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Footer Settings -->
+    <div class="no-print pb-10 flex flex-wrap justify-center gap-6">
+        <button onclick="manageCategories()" class="text-gray-400 text-xs hover:text-blue-500 transition underline underline-offset-4">📁 Atur Kategori Standar</button>
+        <button onclick="changePassword()" class="text-gray-400 text-xs hover:text-blue-500 transition underline underline-offset-4">⚙️ Pengaturan Password</button>
+    </div>
+</div>
+
+<!-- MODALS -->
+<div id="modal-log" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+    <div class="bg-white rounded-xl w-full max-w-2xl max-h-[85vh] flex flex-col shadow-2xl">
+        <div class="p-4 border-b flex justify-between items-center bg-amber-50 rounded-t-xl">
+            <h2 class="font-bold text-amber-800">Log Editing & Audit Trail</h2>
+            <button onclick="closeLogs()" class="text-gray-400 hover:text-black text-xl">✕</button>
+        </div>
+        <div id="log-content" class="p-4 overflow-y-auto flex-1 space-y-3 bg-gray-50"></div>
+    </div>
+</div>
+
+<div id="modal-cat" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+    <div class="bg-white rounded-xl w-full max-w-md shadow-2xl">
+        <div class="p-4 border-b flex justify-between items-center">
+            <h2 class="font-bold">Pengaturan Kategori</h2>
+            <button onclick="document.getElementById('modal-cat').classList.add('hidden')" class="text-gray-400 text-xl">✕</button>
+        </div>
+        <div class="p-4">
+            <div class="flex bg-gray-100 p-1 rounded-lg mb-4">
+                <button id="cat-tab-masuk" onclick="switchCatType('masuk')" class="flex-1 py-1 text-xs font-bold rounded bg-white shadow-sm">MASUK</button>
+                <button id="cat-tab-keluar" onclick="switchCatType('keluar')" class="flex-1 py-1 text-xs font-bold rounded text-gray-500">KELUAR</button>
+            </div>
+            <div class="flex gap-2 mb-4">
+                <input type="text" id="new-cat-name" class="flex-1 border p-2 rounded text-sm" placeholder="Nama kategori baru...">
+                <button onclick="addCategory()" class="bg-blue-600 text-white px-4 py-2 rounded text-sm font-bold">Tambah</button>
+            </div>
+            <div id="cat-list" class="space-y-1 max-h-60 overflow-y-auto"></div>
+        </div>
+    </div>
+</div>
+
+<div id="modal-print" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+    <div class="bg-gray-800 rounded-xl w-full max-w-lg shadow-2xl border border-gray-700">
+        <div class="p-4 border-b border-gray-600 flex justify-between items-center">
+            <h2 class="font-bold text-white">Pilih Opsi Cetak</h2>
+            <button onclick="closePrintModal()" class="text-gray-400 hover:text-white text-xl">✕</button>
+        </div>
+        <div class="p-4 space-y-4">
+            <div>
+                <label class="block text-sm font-medium text-blue-300 mb-2">Pilih Periode Cetak</label>
+                <div class="space-y-2">
+                    <div>
+                        <input type="radio" id="periode-bulan-ini" name="periode" value="bulan-ini" checked class="mr-2">
+                        <label for="periode-bulan-ini" class="text-sm text-blue-300">Bulan Ini</label>
+                    </div>
+                    <div>
+                        <input type="radio" id="periode-bulan-tertentu" name="periode" value="bulan-tertentu" class="mr-2">
+                        <label for="periode-bulan-tertentu" class="text-sm text-blue-300">Bulan Tertentu</label>
+                        <div class="ml-6 mt-1 flex gap-2">
+                            <select id="bulan-select" class="border border-gray-600 p-1 rounded text-sm bg-gray-700 text-white" disabled>
+                                <option value="01">Januari</option>
+                                <option value="02">Februari</option>
+                                <option value="03">Maret</option>
+                                <option value="04">April</option>
+                                <option value="05">Mei</option>
+                                <option value="06">Juni</option>
+                                <option value="07">Juli</option>
+                                <option value="08">Agustus</option>
+                                <option value="09">September</option>
+                                <option value="10">Oktober</option>
+                                <option value="11">November</option>
+                                <option value="12">Desember</option>
+                            </select>
+                            <input type="number" id="tahun-input" class="border border-gray-600 p-1 rounded text-sm w-20 bg-gray-700 text-white" placeholder="2024" disabled>
+                        </div>
+                    </div>
+                    <div>
+                        <input type="radio" id="periode-tertentu" name="periode" value="tertentu" class="mr-2">
+                        <label for="periode-tertentu" class="text-sm text-blue-300">Periode Tertentu</label>
+                        <div class="ml-6 mt-1 flex gap-2">
+                            <input type="date" id="start-date" class="border border-gray-600 p-1 rounded text-sm bg-gray-700 text-white" disabled>
+                            <span class="text-sm text-blue-300">s/d</span>
+                            <input type="date" id="end-date" class="border border-gray-600 p-1 rounded text-sm bg-gray-700 text-white" disabled>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="space-y-3">
+                <button onclick="printReport(); closePrintModal()" class="w-full bg-gray-600 text-white p-3 rounded-lg font-semibold hover:bg-gray-700 transition">Cetak (Print)</button>
+                <button onclick="exportPDF(); closePrintModal()" class="w-full bg-blue-600 text-white p-3 rounded-lg font-semibold hover:bg-blue-700 transition">Ekspor PDF</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // State aplikasi
+    let currentType = 'masuk';
+    let catEditType = 'masuk';
+    let state = {
+        password: "admin", 
+        transactions: [],
+        logs: [],
+        catMasuk: ["Gaji", "Penjualan", "Bonus", "Piutang", "Lain-lain"],
+        catKeluar: ["Makan & Minum", "Listrik & Air", "Transportasi", "Sewa Ganti", "Belanja Inventaris", "Gaji Karyawan"]
+    };
+
+    // Load data dari LocalStorage
+    const saved = localStorage.getItem('kas_app_v4');
+    if (saved) state = JSON.parse(saved);
+
+    function saveToLocal() { 
+        localStorage.setItem('kas_app_v4', JSON.stringify(state)); 
+    }
+
+    // Fungsi Login
+    window.handleLogin = function() {
+        const input = document.getElementById('input-password').value;
+        if (input === state.password) {
+            document.getElementById('login-screen').classList.add('hidden');
+            document.getElementById('main-app').classList.remove('hidden');
+            initApp();
+        } else {
+            document.getElementById('error-msg').classList.remove('hidden');
+            setTimeout(() => document.getElementById('error-msg').classList.add('hidden'), 2000);
+        }
+    };
+
+    function initApp() {
+        document.getElementById('tgl-transaksi').valueAsDate = new Date();
+        switchType('masuk');
+        renderTable();
+        
+        // Tambahkan auto filter saat input tanggal berubah
+        document.getElementById('filter-start').addEventListener('change', renderTable);
+        document.getElementById('filter-end').addEventListener('change', renderTable);
+    }
+
+    window.switchType = function(type) {
+        currentType = type;
+        const btnSave = document.getElementById('btn-save');
+        const tabMasuk = document.getElementById('tab-masuk');
+        const tabKeluar = document.getElementById('tab-keluar');
+
+        if (type === 'masuk') {
+            tabMasuk.className = "px-4 py-1 text-xs font-bold rounded-md bg-white shadow-sm text-green-600";
+            tabKeluar.className = "px-4 py-1 text-xs font-bold rounded-md text-gray-500";
+            btnSave.className = "bg-green-600 text-white w-full h-10 rounded-lg hover:bg-green-700 font-bold transition text-xs";
+        } else {
+            tabKeluar.className = "px-4 py-1 text-xs font-bold rounded-md bg-white shadow-sm text-red-600";
+            tabMasuk.className = "px-4 py-1 text-xs font-bold rounded-md text-gray-500";
+            btnSave.className = "bg-red-600 text-white w-full h-10 rounded-lg hover:bg-red-700 font-bold transition text-xs";
+        }
+        updateCategorySelect();
+    };
+
+    function updateCategorySelect() {
+        const select = document.getElementById('kat-transaksi');
+        const cats = currentType === 'masuk' ? state.catMasuk : state.catKeluar;
+        select.innerHTML = cats.map(c => `<option value="${c}">${c}</option>`).join('');
+    }
+
+    window.handleSave = function() {
+        const tgl = document.getElementById('tgl-transaksi').value;
+        const kat = document.getElementById('kat-transaksi').value;
+        const ket = document.getElementById('ket-transaksi').value;
+        const nom = parseFloat(document.getElementById('nom-transaksi').value);
+
+        if (!tgl || isNaN(nom)) return alert("Lengkapi Tanggal dan Nominal!");
+
+        // Gunakan ID sebagai string untuk keamanan event binding
+        const newId = "tx_" + Date.now() + "_" + Math.floor(Math.random() * 1000);
+
+        state.transactions.push({
+            id: newId,
+            tgl, kat, ket: ket || "-", nom, tipe: currentType
+        });
+        
+        saveToLocal();
+        renderTable();
+        document.getElementById('ket-transaksi').value = '';
+        document.getElementById('nom-transaksi').value = '';
+    };
+
+    window.renderTable = function() {
+        const start = document.getElementById('filter-start').value;
+        const end = document.getElementById('filter-end').value;
+        
+        // Validasi tanggal
+        if (start && end && start > end) {
+            alert("Tanggal mulai tidak boleh lebih besar dari tanggal akhir!");
+            return;
+        }
+        
+        const tbody = document.getElementById('table-body');
+        tbody.innerHTML = '';
+
+        // Urutkan ASC (dari lama ke baru) untuk menghitung saldo berjalan
+        const sorted = [...state.transactions].sort((a,b) => new Date(a.tgl) - new Date(b.tgl));
+        let runningBalance = 0, tIn = 0, tOut = 0;
+
+        const calculated = sorted.map(tx => {
+            if (tx.tipe === 'masuk') { runningBalance += tx.nom; tIn += tx.nom; }
+            else { runningBalance -= tx.nom; tOut += tx.nom; }
+            return { ...tx, currentBalance: runningBalance };
+        });
+
+        // Filter dan Render DESC (terbaru di atas untuk tampilan pengguna)
+        calculated.filter(tx => (!start || tx.tgl >= start) && (!end || tx.tgl <= end))
+        .sort((a,b) => new Date(b.tgl) - new Date(a.tgl) || (b.id > a.id ? 1 : -1))
+        .forEach(tx => {
+            const row = document.createElement('tr');
+            row.className = 'border-b hover:bg-gray-700 transition font-medium text-gray-200';
+            const isIn = tx.tipe === 'masuk';
+            
+            // Perhatikan penggunaan tanda kutip '${tx.id}' agar ID dilempar sebagai string
+            row.innerHTML = `
+                <td class="p-3 text-gray-300 font-mono text-xs">${tx.tgl}</td>
+                <td class="p-3"><span class="px-2 py-0.5 rounded text-[10px] font-bold ${isIn ? 'bg-green-900 text-green-300':'bg-red-900 text-red-300'}">${tx.kat}</span></td>
+                <td class="p-3 text-gray-200">${tx.ket}</td>
+                <td class="p-3 text-right text-green-400 font-bold">${isIn ? tx.nom.toLocaleString('id-ID') : '-'}</td>
+                <td class="p-3 text-right text-red-400 font-bold">${!isIn ? tx.nom.toLocaleString('id-ID') : '-'}</td>
+                <td class="p-3 text-right bg-blue-900 text-blue-300 font-bold">${tx.currentBalance.toLocaleString('id-ID')}</td>
+                <td class="p-3 no-print text-center">
+                    <div class="flex justify-center items-center gap-2">
+                         <button onclick="editTx('${tx.id}')" class="bg-blue-50 text-blue-600 px-3 py-1 rounded hover:bg-blue-600 hover:text-white transition text-[10px] font-bold uppercase">Ubah</button>
+                         <button onclick="deleteTx('${tx.id}')" class="bg-red-50 text-red-600 px-3 py-1 rounded hover:bg-red-600 hover:text-white transition text-[10px] font-bold uppercase">Hapus</button>
+                    </div>
+                </td>
+            `;
+            tbody.appendChild(row);
+        });
+
+        document.getElementById('display-masuk').innerText = 'Rp ' + tIn.toLocaleString('id-ID');
+        document.getElementById('display-keluar').innerText = 'Rp ' + tOut.toLocaleString('id-ID');
+        document.getElementById('display-saldo').innerText = 'Rp ' + runningBalance.toLocaleString('id-ID');
+    };
+
+    // Fungsi Edit Global
+    window.editTx = function(targetId) {
+        const idx = state.transactions.findIndex(t => t.id === targetId);
+        if (idx === -1) return alert("Data tidak ditemukan! (ID: " + targetId + ")");
+
+        const tx = state.transactions[idx];
+        
+        // Prompt for new date
+        const nTgl = prompt("Ubah Tanggal (YYYY-MM-DD):", tx.tgl);
+        if (nTgl === null) return;
+        if (!nTgl.match(/^\d{4}-\d{2}-\d{2}$/)) return alert("Format tanggal harus YYYY-MM-DD!");
+
+        // Prompt for type (debit/credit)
+        const typeOptions = "1. Debit (Pemasukan)\n2. Kredit (Pengeluaran)";
+        const typeChoice = prompt("Pilih Jenis:\n" + typeOptions, tx.tipe === 'masuk' ? '1' : '2');
+        if (typeChoice === null) return;
+        const nTipe = typeChoice === '1' ? 'masuk' : 'keluar';
+        if (nTipe !== 'masuk' && nTipe !== 'keluar') return alert("Pilih 1 untuk Debit atau 2 untuk Kredit!");
+
+        // Get categories for the new type
+        const cats = nTipe === 'masuk' ? state.catMasuk : state.catKeluar;
+        const catOptions = cats.map((c, i) => `${i+1}. ${c}`).join('\n');
+        const catChoice = prompt("Pilih Kategori:\n" + catOptions, cats.indexOf(tx.kat) + 1 || 1);
+        if (catChoice === null) return;
+        const catIndex = parseInt(catChoice) - 1;
+        if (isNaN(catIndex) || catIndex < 0 || catIndex >= cats.length) return alert("Pilih kategori yang valid!");
+        const nKat = cats[catIndex];
+
+        // Prompt for new description
+        const nKet = prompt("Ubah Keterangan:", tx.ket);
+        if (nKet === null) return;
+
+        // Prompt for new amount
+        const nNomStr = prompt("Ubah Nominal (angka saja):", tx.nom);
+        if (nNomStr === null) return;
+        const nNom = parseFloat(nNomStr);
+        if (isNaN(nNom)) return alert("Input nominal harus berupa angka!");
+
+        // Simpan log audit
+        state.logs.push({
+            waktu: new Date().toLocaleString('id-ID'),
+            detail: `UBAH: [${tx.tipe.toUpperCase()}] ${tx.tgl} "${tx.ket}" ${tx.kat} Rp${tx.nom.toLocaleString()} menjadi [${nTipe.toUpperCase()}] ${nTgl} "${nKet}" ${nKat} Rp${nNom.toLocaleString()}`
+        });
+
+        // Update data
+        state.transactions[idx].tgl = nTgl;
+        state.transactions[idx].tipe = nTipe;
+        state.transactions[idx].kat = nKat;
+        state.transactions[idx].ket = nKet;
+        state.transactions[idx].nom = nNom;
+
+        saveToLocal();
+        renderTable();
+    };
+
+    // Fungsi Hapus Global
+    window.deleteTx = function(targetId) {
+        if (!confirm("Apakah Anda yakin ingin menghapus data ini secara permanen?")) return;
+        
+        const idx = state.transactions.findIndex(t => t.id === targetId);
+        if (idx === -1) return alert("Data tidak ditemukan!");
+
+        const tx = state.transactions[idx];
+        state.logs.push({
+            waktu: new Date().toLocaleString('id-ID'),
+            detail: `HAPUS: [${tx.tipe.toUpperCase()}] ${tx.ket} senilai Rp${tx.nom.toLocaleString()}`
+        });
+
+        state.transactions.splice(idx, 1);
+        
+        saveToLocal();
+        renderTable();
+    };
+
+    // Fungsi Pembantu Lainnya
+    window.showLogs = function() {
+        const modal = document.getElementById('modal-log');
+        const content = document.getElementById('log-content');
+        content.innerHTML = state.logs.length ? state.logs.map(l => `
+            <div class="p-3 bg-white border-l-4 border-amber-500 rounded shadow-sm text-[10px]">
+                <b class="text-amber-700">${l.waktu}</b>
+                <p class="mt-1 text-gray-700">${l.detail}</p>
+            </div>
+        `).reverse().join('') : '<p class="text-center py-6 text-gray-400 italic">Belum ada riwayat aktivitas.</p>';
+        modal.classList.remove('hidden');
+    };
+
+    window.closeLogs = () => document.getElementById('modal-log').classList.add('hidden');
+    
+    window.showPrintModal = function() {
+        // Set default bulan dan tahun untuk bulan tertentu
+        const now = new Date();
+        document.getElementById('bulan-select').value = String(now.getMonth() + 1).padStart(2, '0');
+        document.getElementById('tahun-input').value = now.getFullYear();
+        
+        // Set default periode tertentu ke bulan ini
+        const firstDay = new Date(now.getFullYear(), now.getMonth(), 1);
+        const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+        document.getElementById('start-date').value = firstDay.toISOString().split('T')[0];
+        document.getElementById('end-date').value = lastDay.toISOString().split('T')[0];
+        
+        // Enable/disable inputs berdasarkan radio
+        togglePrintInputs();
+        
+        document.getElementById('modal-print').classList.remove('hidden');
+    };
+
+    function togglePrintInputs() {
+        const periode = document.querySelector('input[name="periode"]:checked').value;
+        document.getElementById('bulan-select').disabled = periode !== 'bulan-tertentu';
+        document.getElementById('tahun-input').disabled = periode !== 'bulan-tertentu';
+        document.getElementById('start-date').disabled = periode !== 'tertentu';
+        document.getElementById('end-date').disabled = periode !== 'tertentu';
+    }
+
+    // Tambahkan event listener untuk radio buttons
+    document.addEventListener('DOMContentLoaded', function() {
+        document.querySelectorAll('input[name="periode"]').forEach(radio => {
+            radio.addEventListener('change', togglePrintInputs);
+        });
+    });
+
+    function getPrintPeriod() {
+        const periode = document.querySelector('input[name="periode"]:checked').value;
+        let start, end;
+        
+        if (periode === 'bulan-ini') {
+            const now = new Date();
+            start = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
+            end = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().split('T')[0];
+        } else if (periode === 'bulan-tertentu') {
+            const bulan = parseInt(document.getElementById('bulan-select').value);
+            const tahun = parseInt(document.getElementById('tahun-input').value);
+            start = `${tahun}-${String(bulan).padStart(2,'0')}-01`;
+            end = new Date(tahun, bulan, 0).toISOString().split('T')[0];
+        } else if (periode === 'tertentu') {
+            start = document.getElementById('start-date').value;
+            end = document.getElementById('end-date').value;
+        }
+        
+        return { start, end };
+    }
+
+    window.closePrintModal = function() {
+        document.getElementById('modal-print').classList.add('hidden');
+    };
+
+    window.exportPDF = function() {
+        const { start, end } = getPrintPeriod();
+        
+        // Simpan filter asli
+        const originalStart = document.getElementById('filter-start').value;
+        const originalEnd = document.getElementById('filter-end').value;
+        
+        // Set filter untuk cetak
+        document.getElementById('filter-start').value = start;
+        document.getElementById('filter-end').value = end;
+        renderTable();
+        
+        // Update periode di header cetak
+        const periodeText = start === end ? `Tanggal ${start}` : `Periode ${start} s/d ${end}`;
+        document.getElementById('print-periode').textContent = periodeText;
+        
+        // Show print-only elements temporarily
+        document.querySelectorAll('.print-only').forEach(el => el.classList.remove('hidden'));
+        document.querySelectorAll('.no-print').forEach(el => el.classList.add('hidden'));
+        
+        const element = document.querySelector('.container');
+        const opt = {
+            margin: 0.5,
+            filename: `Laporan_Kas_${start}_${end}.pdf`,
+            image: { type: 'jpeg', quality: 0.98 },
+            html2canvas: { scale: 2, useCORS: true },
+            jsPDF: { unit: 'in', format: 'a4', orientation: 'portrait' }
+        };
+        
+        html2pdf().set(opt).from(element).save().then(() => {
+            // Restore visibility and filter
+            document.querySelectorAll('.print-only').forEach(el => el.classList.add('hidden'));
+            document.querySelectorAll('.no-print').forEach(el => el.classList.remove('hidden'));
+            document.getElementById('filter-start').value = originalStart;
+            document.getElementById('filter-end').value = originalEnd;
+            renderTable();
+        });
+    };
+
+    window.printReport = function() {
+        const { start, end } = getPrintPeriod();
+        
+        // Simpan filter asli
+        const originalStart = document.getElementById('filter-start').value;
+        const originalEnd = document.getElementById('filter-end').value;
+        
+        // Set filter untuk cetak
+        document.getElementById('filter-start').value = start;
+        document.getElementById('filter-end').value = end;
+        renderTable();
+        
+        // Update periode di header cetak
+        const periodeText = start === end ? `Tanggal ${start}` : `Periode ${start} s/d ${end}`;
+        document.getElementById('print-periode').textContent = periodeText;
+        
+        // Show print-only elements
+        document.querySelectorAll('.print-only').forEach(el => el.classList.remove('hidden'));
+        document.querySelectorAll('.no-print').forEach(el => el.classList.add('hidden'));
+        
+        // Trigger print
+        window.print();
+        
+        // Restore filter after print (with delay)
+        setTimeout(() => {
+            document.querySelectorAll('.print-only').forEach(el => el.classList.add('hidden'));
+            document.querySelectorAll('.no-print').forEach(el => el.classList.remove('hidden'));
+            document.getElementById('filter-start').value = originalStart;
+            document.getElementById('filter-end').value = originalEnd;
+            renderTable();
+        }, 1000);
+    };
+    window.logout = () => location.reload();
+    
+    window.exportData = function() {
+        const blob = new Blob([JSON.stringify(state)], {type: "application/json"});
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `KAS_BACKUP_${new Date().toISOString().slice(0,10)}.json`;
+        a.click();
+    };
+
+    window.importData = function() {
+        const i = document.createElement('input');
+        i.type = 'file';
+        i.onchange = e => {
+            const r = new FileReader();
+            r.onload = x => {
+                try {
+                    const imported = JSON.parse(x.target.result);
+                    if (imported.transactions) {
+                        state = imported;
+                        saveToLocal();
+                        location.reload();
+                    } else { throw new Error(); }
+                } catch(e) { alert("File backup tidak valid!"); }
+            };
+            r.readAsText(e.target.files[0]);
+        };
+        i.click();
+    };
+
+    // Kategori Manajemen
+    window.manageCategories = function() {
+        switchCatType('masuk');
+        document.getElementById('modal-cat').classList.remove('hidden');
+    };
+
+    window.switchCatType = function(type) {
+        catEditType = type;
+        document.getElementById('cat-tab-masuk').className = type === 'masuk' ? "flex-1 py-1 text-xs font-bold rounded bg-white shadow-sm" : "flex-1 py-1 text-xs font-bold rounded text-gray-500";
+        document.getElementById('cat-tab-keluar').className = type === 'keluar' ? "flex-1 py-1 text-xs font-bold rounded bg-white shadow-sm text-red-600" : "flex-1 py-1 text-xs font-bold rounded text-gray-500";
+        renderCatList();
+    };
+
+    function renderCatList() {
+        const list = document.getElementById('cat-list');
+        const cats = catEditType === 'masuk' ? state.catMasuk : state.catKeluar;
+        list.innerHTML = cats.map((c, i) => `
+            <div class="flex justify-between items-center p-2 bg-gray-50 rounded text-sm mb-1">
+                <span>${c}</span>
+                <button onclick="removeCategory(${i})" class="text-red-400 hover:text-red-600">✕</button>
+            </div>
+        `).join('');
+    }
+
+    window.addCategory = function() {
+        const val = document.getElementById('new-cat-name').value.trim();
+        if (!val) return;
+        if (catEditType === 'masuk') state.catMasuk.push(val); else state.catKeluar.push(val);
+        saveToLocal(); renderCatList(); updateCategorySelect();
+        document.getElementById('new-cat-name').value = '';
+    };
+
+    window.removeCategory = function(i) {
+        if (catEditType === 'masuk') state.catMasuk.splice(i, 1); else state.catKeluar.splice(i, 1);
+        saveToLocal(); renderCatList(); updateCategorySelect();
+    };
+    
+    window.changePassword = function() {
+        const o = prompt("Masukkan Password Saat Ini:");
+        if (o === state.password) {
+            const n = prompt("Masukkan Password Baru:");
+            if (n) {
+                state.password = n;
+                saveToLocal();
+                alert("Password berhasil diperbarui!");
+            }
+        } else if (o !== null) {
+            alert("Password salah!");
+        }
+    };
+</script>
+</body>
+</html>
